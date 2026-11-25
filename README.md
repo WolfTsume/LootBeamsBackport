@@ -1,121 +1,51 @@
 # Loot Beams Backport
 
-A backport of shiroroku's Loot Beams to **Minecraft 1.7.10 / Forge**. Dropped
-items emit a colored beam so they are easier to find.
+本项目使用AI编码
 
-Current version: **V1.0.7**. This fork fixes item-name color parsing, adds color
-and item filters, and fixes missing or off-center beams in GT New Horizons.
+这是基于 Mixin 版 V1.0.6 修改的版本，适用于 Minecraft 1.7.10 / Forge，目前仅测试过GTNH整合包2.9.1的兼容性，其他整合包不保证可用。
 
-[中文配置与验证说明](TESTING_zh_CN.md)
+## 安装与首次测试
 
-## Installation
+Jar文件放入游戏实例的mods文件夹，移除旧版本。需要兼容的 Mixin 加载器，GTNH 2.9.1 自带的 UniMixins 即可。
 
-1. Close Minecraft and remove the previous Beaming Drops / Loot Beams Backport
-   JAR from the client's `mods` directory. Keep only one version installed.
-2. Install `beamingdrops-V1.0.7.jar`. The `-dev` and `-sources` JARs are for
-   development, not installation.
-3. A GTNH-compatible Mixin loader is required; GTNH 2.9.1 already includes
-   UniMixins. Keep the loader supplied by the pack.
-4. Start the game. Existing configuration is preserved and new options are
-   added automatically. Restart Minecraft after editing the configuration.
+## 目前改进的内容
 
-The mod ID remains `beamingdrops`. Configuration is stored at:
+- 改为在 `RenderManager.func_147939_a` 成功返回时统一绘制光柱，覆盖三维方块、普通图标和自定义物品渲染路径。移除了旧版按图标/Forge/ItemPhysic 分别绘制的注入点，避免漏画或重复绘制。
+- 绘制时使用该次实体渲染传入的插值坐标，物品渲染器的平移、缩放和旋转已恢复。光柱以实体 X/Z 中心为轴旋转，不再随 GT 图标的左下角坐标系偏移。
+- 绘制后恢复光柱改动的 OpenGL 状态；旋转和浮动使用帧插值，关闭旋转后仍可单独浮动。
+- 高度、直径现在直接以方块为单位，不再受到物品模型的 0.25/0.5 缩放影响。可用 `beamHeight` / `beamDiameter` 调整。
 
-```text
-.minecraft/config/beamingdrops/BeamingDropMixinsEarly.cfg
-```
+## 过滤配置
 
-## Changes in V1.0.7
+配置文件为 .minecraft/config/beamingdrops/BeamingDropMixinsEarly.cfg。以下示例用于替换 "beam settings" 内的对应选项，修改后重启游戏。
 
-- Parse consecutive name formatting codes correctly. Style codes and trailing
-  reset codes no longer hide the intended color. Unformatted names fall back to
-  the item's rarity color.
-- Allow every color, including white/common items, by default. Add independent
-  color and item blacklist/whitelist settings.
-- Support registry IDs with all metadata, an explicit metadata value, or an
-  explicit `*`. Fix ore dictionary name matching.
-- Draw beams after entity rendering, covering 3D blocks, icons, and custom item
-  renderers through one hook. Fix missing beams on blocks and the offset/orbiting
-  beam seen with GregTech item renderers.
-- Center beams on the dropped entity, restore OpenGL state after drawing, and
-  interpolate rotation and floating between ticks.
-- Express beam height and diameter in block units, independent of item model
-  scaling. Existing settings may produce taller or wider beams than V1.0.6;
-  adjust `beamHeight` and `beamDiameter` if needed.
-- Keep the JAR filename, Forge metadata, and in-game version synchronized, and
-  restore the Gradle build with automated regression tests.
+| 配置项 | 默认值 | 含义 |
+| --- | --- | --- |
+| `S:itemBlackList` | 空列表 | 按物品注册 ID / metadata 或矿辞匹配 |
+| `B:isWhitelist` | `false` | `false` 为物品黑名单，`true` 为物品白名单 |
+| `S:colorBlackList` | 空列表 | 按解析得到的光柱颜色匹配 |
+| `B:isColorWhitelist` | `false` | `false` 为颜色黑名单，`true` 为颜色白名单 |
 
-## Configuration
+物品过滤与颜色过滤需要**同时放行**。空黑名单全部放行，空白名单全部拦截。颜色过滤按解析结果匹配，不直接按稀有度枚举匹配。
 
-Default settings:
+### 示例一：只屏蔽白色物品
 
 ```text
-"beam settings" {
-    B:needRenderBeam=true
-    B:useHighResBeam=true
-    B:useRotatingBeam=true
-    B:useFloatingBeam=true
-    S:beamDiameter=0.25
-    S:beamHeight=4.0
-
-    B:isWhitelist=false
-    S:itemBlackList <
-     >
-
-    B:isColorWhitelist=false
-    S:colorBlackList <
-     >
-
-    B:useDepthMask=false
-}
-```
-
-| Setting | Meaning |
-| --- | --- |
-| `needRenderBeam` | Enable or disable all beams. |
-| `useHighResBeam` | Use the 256×256 texture; `false` selects the 16×16 texture. |
-| `useRotatingBeam` | Rotate the beam core over time. |
-| `useFloatingBeam` | Move the beam slightly up and down, independently of rotation. |
-| `beamDiameter` | Beam width in blocks, from `0.05` to `3.0`. |
-| `beamHeight` | Beam height in blocks, from `0.5` to `32.0`. |
-| `itemBlackList` / `isWhitelist` | Item rules and whether they act as a whitelist. |
-| `colorBlackList` / `isColorWhitelist` | Color rules and whether they act as a whitelist. |
-| `useDepthMask` | Write beams to the depth buffer; usually leave `false` for transparency. Blocks still occlude beams in either mode. |
-
-Both the item filter and the color filter must allow an item. An empty blacklist
-allows everything; an empty whitelist allows nothing. The original item filter
-option names are retained for compatibility with existing configuration files.
-
-### Beam colors
-
-The beam uses the effective color of the first visible, non-whitespace character
-in the display name. Formatting codes are processed in order: styles such as
-bold do not change the color, `§r` resets it to white, and formatting after that
-first character does not change the selected beam color. An unformatted name
-uses the rarity color. A multicolored name produces one beam color.
-
-Color filter entries accept Minecraft color names, formatting codes (`0`–`f`,
-or `§9`), or RGB hex values (`#5555FF`, `0x5555FF`, or `5555FF`). Color names and
-hex values are case-insensitive. Invalid entries match nothing.
-
-Available names: `black`, `dark_blue`, `dark_green`, `dark_aqua`, `dark_red`,
-`dark_purple`, `gold`, `gray`, `dark_gray`, `blue`, `green`, `aqua`, `red`,
-`light_purple`, `yellow`, `white`. The legacy `minecoin_gold` / `g` extension is
-also retained. `gold` is `#FFAA00`; `yellow` is `#FFFF55`.
-
-For example, hide white/common beams by replacing the corresponding options
-inside the existing category:
-
-```text
+B:isWhitelist=false
+S:itemBlackList <
+ >
 B:isColorWhitelist=false
 S:colorBlackList <
     white
  >
 ```
 
-To show only blue and bright purple beams, use:
+### 示例二：只允许蓝色和紫色名称的物品
 
 ```text
+B:isWhitelist=false
+S:itemBlackList <
+ >
 B:isColorWhitelist=true
 S:colorBlackList <
     blue
@@ -123,21 +53,11 @@ S:colorBlackList <
  >
 ```
 
-### Item IDs and metadata
+深紫色对应 `dark_purple`，常见稀有度的亮紫色对应 `light_purple`。金色为 `gold`（`#FFAA00`），黄色为 `yellow`（`#FFFF55`）。
 
-| Rule | Matches |
-| --- | --- |
-| `modid:item` | All metadata values of that registry ID. |
-| `modid:item:*` | All metadata values of that registry ID. |
-| `modid:item:123` | Only metadata `123`. |
-| `ore:oreCoal` | Items registered under the ore dictionary name `oreCoal`. |
+支持的颜色名：`black`, `dark_blue`, `dark_green`, `dark_aqua`, `dark_red`, `dark_purple`, `gold`, `gray`, `dark_gray`, `blue`, `green`, `aqua`, `red`, `light_purple`, `yellow`, `white`。保留上游扩展色 `minecoin_gold`。也可写单个颜色码 `0`–`f`，或者 RGB 值，如 `#5555FF` / `0x5555FF`。不识别的颜色条目不匹配任何颜色。
 
-Registry IDs and ore dictionary names are case-sensitive. GregTech uses metadata
-for many item variants: include the metadata to filter one variant. Bare IDs now
-match **all metadata**, whereas V1.0.6 treated them as metadata `0`; add `:0` to an
-old rule if that narrower behavior is desired.
-
-For example, hide cobblestone and red wool:
+### 示例三：屏蔽圆石及指定变种
 
 ```text
 B:isWhitelist=false
@@ -145,44 +65,19 @@ S:itemBlackList <
     minecraft:cobblestone
     minecraft:wool:14
  >
+B:isColorWhitelist=false
+S:colorBlackList <
+ >
 ```
 
-## Validation and reporting
+- `modid:item`：匹配这个注册 ID 的**所有 metadata**。
+- `modid:item:*`：同上。
+- `modid:item:123`：仅匹配 metadata 为 `123` 的变种。
+- `ore:oreCoal`：匹配矿辞 `oreCoal`，具体矿辞以游戏中的实际注册为准。
+- GTNH 常用 metadata 区分大量变种；过滤某一种 GT 物品时应写完整的 `modid:item:meta`，避免把整个注册 ID 的变种全部过滤掉。ID 大小写需与注册名一致。
 
-The rendering fixes were tested in game by the maintainer on GTNH 2.9.1, with
-working beams and correct positioning reported. Fourteen automated tests cover
-name colors, filter rules, configuration migration, and beam geometry. The
-V1.0.7 build packages the same rendering code as the tested
-`V1.0.6-renderfix.2` build.
+升级注意：V1.0.6 的裸 ID 原先仅匹配 metadata `0`，本版改为匹配所有 metadata。如要保留旧规则的范围，请将该条目显式改成 `modid:item:0`。不需要删除配置文件。
 
-Optional smoke checks and the information needed for bug reports are listed in
-the [Chinese guide](TESTING_zh_CN.md). Shader packs, other modpacks, and every
-custom renderer have not been exhaustively tested.
+## 构建
 
-## Building
-
-Use JDK 17 or 21 to run the Gradle wrapper:
-
-```powershell
-.\gradlew.bat build
-```
-
-On Linux/macOS, run `./gradlew build`. The build selects its compiler toolchain
-as needed and targets Java 8 bytecode. JARs are written to `build/libs/`; the test
-report is at `build/reports/tests/test/index.html`.
-
-The GTNH settings plugin is pinned to `1.0.30`. The old optional NEI development
-dependency and ItemPhysic-specific compile dependency are no longer needed;
-ItemPhysic uses the shared entity render hook.
-
-## Credits
-
-Original mod: **shiroroku**. Backport contributors include **Veritaris**,
-**quentin452**, **Kotmatross**, and the other code contributors credited by the
-project. This fork builds on their work.
-
-<details><summary>Original preview GIF</summary>
-
-![Example](./media/lootbeamsbackport_30.gif)
-
-</details>
+在仓库目录运行 `gradlew.bat build`。运行 Gradle 使用 JDK 17 或 21
