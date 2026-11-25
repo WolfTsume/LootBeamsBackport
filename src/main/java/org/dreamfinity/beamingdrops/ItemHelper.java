@@ -1,6 +1,5 @@
 package org.dreamfinity.beamingdrops;
 
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.oredict.OreDictionary;
 
@@ -11,6 +10,7 @@ public class ItemHelper {
     private ItemHelper() {}
 
     public static boolean isStackInArray(ItemStack stack, String[] itemStrings) {
+        if (stack == null || itemStrings == null) return false;
         for (String itemString : itemStrings) {
             if (matchesStack(stack, itemString)) return true;
         }
@@ -18,34 +18,23 @@ public class ItemHelper {
     }
 
     public static boolean matchesStack(ItemStack stack, String stackString) {
-        stackString = stackString.replace("\"", "");
-        String[] splitString = stackString.split(":");
+        if (stack == null || stack.getItem() == null || stackString == null) return false;
+        stackString = stackString.replace("\"", "").trim();
+        String[] splitString = stackString.split(":", -1);
         if (splitString.length < 2 || splitString.length > 3) {
             return false;
         }
         // ore dictionary handling
-        if (splitString[0] == "ore" && OreDictionary.doesOreNameExist(splitString[1])) {
+        if ("ore".equals(splitString[0])) {
+            if (splitString.length != 2 || !OreDictionary.doesOreNameExist(splitString[1])) return false;
             for (int ID : OreDictionary.getOreIDs(stack)) {
                 if (OreDictionary.getOreID(splitString[1]) == ID) {
                     return true;
                 }
             }
-        } else {
-            Item item = GameRegistry.findItem(splitString[0], splitString[1]);
-            if (stack.getItem()
-                .equals(item)) {
-                if (splitString.length == 3) {
-                    if (splitString[2].equals("*")) return true;
-                    try {
-                        if (Integer.parseInt(splitString[2]) == stack.getItemDamage()) {
-                            return true;
-                        }
-                    } catch (Exception ignored) {}
-                } else if (stack.getItemDamage() == 0) {
-                    return true;
-                }
-            }
+            return false;
         }
-        return false;
+        GameRegistry.UniqueIdentifier id = GameRegistry.findUniqueIdentifierFor(stack.getItem());
+        return id != null && BeamFilters.matchesItemId(id.toString(), stack.getItemDamage(), stackString);
     }
 }

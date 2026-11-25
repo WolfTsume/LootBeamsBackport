@@ -15,7 +15,7 @@ import org.dreamfinity.beamingdrops.proxy.CommonProxy;
 public class BeamingDrops {
     public static final  String MODID = "beamingdrops";
     public static final String NAME = "BeamingDrops";
-    public static final String VERSION = "@version@";
+    public static final String VERSION = Tags.VERSION;
 
     @SidedProxy(
         clientSide = "org.dreamfinity.beamingdrops.proxy.ClientProxy",

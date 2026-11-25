@@ -30,8 +30,7 @@ public class LBBEarlyMixins implements IFMLLoadingPlugin, IEarlyMixinLoader {
         List<String> mixins = new ArrayList<>();
 
         if(client) {
-            mixins.add("MixinRenderItem");
-            mixins.add("MixinForgeHooksClient");
+            mixins.add("MixinRenderManager");
         }
 
         return mixins;

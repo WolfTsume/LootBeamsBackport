@@ -3,4 +3,7 @@ plugins {
     id 'com.gtnewhorizons.gtnhconvention'
 }
 
-version = "V1.0.6"
+version = "V1.0.7"
+
+// Keep the in-game version aligned with the artifact version.
+minecraft.injectedTags.put("VERSION", project.version.toString())

@@ -10,12 +10,12 @@ pluginManagement {
                 includeGroupByRegex("com\\.gtnewhorizons\\..+")
             }
         }
-        gradlePluginPortal()
         mavenCentral()
+        gradlePluginPortal()
         mavenLocal()
     }
 }
 
 plugins {
-    id 'com.gtnewhorizons.gtnhsettingsconvention' version '1.0.27'
+    id 'com.gtnewhorizons.gtnhsettingsconvention' version '1.0.30'
 }
